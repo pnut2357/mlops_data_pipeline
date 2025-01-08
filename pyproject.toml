@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "mlops_data_pipeline"
+authors = [
+    "Jae Choi <jae.hyuk.choi.0325@gmail.com>",
+]
+version = "0.0.1"
+description = "mlops data pipeline"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "7.4.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.12.0"
+black = ">=23.9.1"
+pylint = "*"
+apache-airflow = ">=2.5.3"
+apache-airflow-providers-google = "10.7.0"
+astro-sdk-python = ">=1.6.2"
+
+[tool.pytest.ini_options]
+markers = [ "pipeline_test: Mark tests as pipelines tests"]
+
+[tool.coverage.report]
+omit = [
+  "tests/*",
+]
