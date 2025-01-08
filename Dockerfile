@@ -1,7 +1,5 @@
 FROM quay.io/astronomer/astro-runtime:12.6.0
-#
-## install soda into a virtual environment
-#RUN pip install -r requirements.txt
+
 
 #FROM apache/airflow:2.6.1
 COPY requirements.txt /requirements.txt
