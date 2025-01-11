@@ -34,7 +34,7 @@ with DAG(
     schedule_interval=None,
     catchup=False,
 ) as dag:
-    config = load_config("/usr/local/airflow/include/config.yml")["stock_pred"]
+    config = load_config("./include/config.yml")["stock_pred"]
     gcp_conn_id = config["gcp_conn_id"]
     project_id = config["project_id"]
     dataset_id = config["dataset_id"]

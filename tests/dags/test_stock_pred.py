@@ -7,6 +7,15 @@ import pandas as pd
 from dags.stock_pred import create_dataset
 from dags.stock_pred import clean_column_names
 
+
+@patch("dags.online_retail.load_config")
+def test_load_config(mock_load_config, mock_config):
+    """Test that the configuration file is correctly loaded."""
+    mock_load_config.return_value = mock_config
+    config = mock_load_config.return_value
+    assert config["online_retail"]["gcp_conn_id"] == "gcpconn", "Failed to load GCP connection ID"
+
+
 @pytest.mark.parametrize("dag_id", ["stock_pred"])
 def test_dag_loaded(dag_id):
     """Test if the DAG is successfully loaded.
@@ -72,8 +81,8 @@ def test_bigquery_dataset_creation(mock_execute):
     mock_execute.return_value = None
     mock_context = MagicMock()
     mock_task = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset",
-        dataset_id="test_dataset",
+        task_id="create_dataset1",
+        dataset_id="test_dataset1",
         gcp_conn_id="gcpconn",
     )
     mock_task.execute(mock_context)

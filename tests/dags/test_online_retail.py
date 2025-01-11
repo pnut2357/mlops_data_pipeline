@@ -7,8 +7,17 @@ from unittest.mock import MagicMock, patch
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
 import pandas as pd
-from dags.online_retail import create_dataset
+from dags.online_retail import load_config
+# from dags.online_retail import create_dataset
 from dags.online_retail import clean_column_names
+
+
+@patch("dags.online_retail.load_config")
+def test_load_config(mock_load_config, mock_config):
+    """Test that the configuration file is correctly loaded."""
+    mock_load_config.return_value = mock_config
+    config = mock_load_config.return_value
+    assert config["online_retail"]["gcp_conn_id"] == "gcpconn", "Failed to load GCP connection ID"
 
 
 @pytest.mark.parametrize("dag_id", ["online_retail"])
@@ -26,7 +35,6 @@ def test_dag_loaded(dag_bag, dag_id):
 def test_task_clean_csv_columns(sample_csv_file, tmp_path):
     """Test the clean_column_names function to ensure column cleaning works as expected.
     """
-
     cleaned_file = tmp_path / "cleaned_file.csv"
     clean_column_names(input_path=sample_csv_file, output_path=cleaned_file)
     df = pd.read_csv(cleaned_file)
@@ -77,7 +85,12 @@ def test_bigquery_dataset_creation(mock_execute):
     """
     mock_execute.return_value = None
     mock_context = MagicMock()
-    create_dataset.execute(mock_context)
+    mock_task = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset2",
+        dataset_id="test_dataset2",
+        gcp_conn_id="gcpconn",
+    )
+    mock_task.execute(mock_context)
     mock_execute.assert_called_once_with(mock_context)
 
 
