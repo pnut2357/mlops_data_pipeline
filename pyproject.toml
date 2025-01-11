@@ -4,6 +4,7 @@ authors = [
     "Jae Choi <jae.hyuk.choi.0325@gmail.com>",
 ]
 version = "0.0.1"
+packages = [{include = "dags"}]
 description = "mlops data pipeline"
 
 [tool.poetry.dependencies]
