@@ -19,6 +19,7 @@ apache-airflow = ">=2.5.3"
 apache-airflow-providers-google = ">=10.7.0"
 astro-sdk-python = ">=1.6.2"
 pandas = ">=1.5.3"
+PyYAML = "*"
 
 [tool.pytest.ini_options]
 markers = [ "mlops_data_pipeline: Mark tests as pipelines tests"]
