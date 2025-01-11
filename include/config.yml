@@ -1,0 +1,20 @@
+
+online_retail:
+  gcp_conn_id: "gcpconn"
+  project_id: "crafty-student-446923-n5"
+  dataset_id: "retail"
+  csv_data: "/usr/local/airflow/include/dataset/online_retail.csv"
+  cleaned_csv_data: "/usr/local/airflow/include/dataset/cleaned_online_retail.csv"
+  gcs: "gs://mlops-data-pipieline"
+  dst_path: "raw/retail/online_retail.csv"
+  saving_table_name: "raw_online_retail"
+
+stock_pred:
+  gcp_conn_id: "gcpconn"
+  project_id: "crafty-student-446923-n5"
+  dataset_id: "stock"
+  csv_data: "/usr/local/airflow/include/dataset/NSE-TATAGLOBAL.csv"
+  cleaned_csv_data: "/usr/local/airflow/include/dataset/cleaned_NSE-TATAGLOBAL.csv"
+  gcs: "gs://mlops-data-pipieline"
+  dst_path: "raw/stock/NSE-TATAGLOBAL.csv"
+  saving_table_name: "raw_nse_tataglobal"

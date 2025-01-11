@@ -1,107 +1,84 @@
-from airflow.decorators import (
-    dag,
-    task,
-)  # DAG and task decorators for interfacing with the TaskFlow API
+import yaml
+from airflow import DAG
 from datetime import datetime
+from airflow.operators.dummy import DummyOperator
+from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
+from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from astro import sql as aql
 from astro.files import File
-# from airflow.models.baseoperator import chain
+from airflow.models.baseoperator import chain
 from astro.sql.table import Table, Metadata
 from astro.constants import FileType
-# from include.dbt.cosmos_config import DBT_CONFIG, DBT_PROJECT_CONFIG
-# from cosmos.airflow.task_group import DbtTaskGroup
-# from cosmos.constants import LoadMode
-# from cosmos.config import ProjectConfig, RenderConfig
-
-
-@dag(
-    dag_id='online_retail',
-    start_date=datetime(2023, 1, 1),
-    schedule=None,
-    catchup=False,
-    # tags=['retail'],
+from airflow.decorators import (
+    task,
 )
-def retail():
+import pandas as pd
+
+
+def load_config(config_file):
+    with open(config_file, "r") as file:
+        return yaml.safe_load(file)
+
+
+def clean_column_names(input_path: str, output_path: str):
+    """Cleans column names by removing whitespaces and special characters.
+    """
+    df = pd.read_csv(input_path)
+    df.columns = df.columns.str.replace(r"[^\w]", "", regex=True)
+    df.to_csv(output_path, index=False)
+
+with DAG(
+    dag_id="online_retail",
+    start_date=datetime(2023, 1, 1),
+    default_args={
+        "retries": 3,
+        "owner": "Astro"
+    },
+    schedule_interval=None,
+    catchup=False,
+) as dag:
+    config = load_config("/usr/local/airflow/include/config.yml")["online_retail"]
+    gcp_conn_id = config["gcp_conn_id"]
+    project_id = config["project_id"]
+    dataset_id = config["dataset_id"]
+    csv_data = config["csv_data"]
+    cleaned_csv_data = config["cleaned_csv_data"]
+    gcs = config["gcs"]
+    dst_path = config["dst_path"]
+    saving_table_name = config["saving_table_name"]
+    gcs_name = gcs.split('://')[1]
+    clean_csv_task = PythonOperator(
+        task_id='clean_csv_columns',
+        python_callable=clean_column_names,
+        op_kwargs={
+            'input_path': csv_data,
+            'output_path': cleaned_csv_data,
+        },
+    )
     upload_csv_to_gcs = LocalFilesystemToGCSOperator(
         task_id='upload_csv_to_gcs',
-        src='/usr/local/airflow/include/dataset/online_retail.csv',
-        dst='raw/online_retail.csv',
-        bucket='mlops-data-pipieline',
-        gcp_conn_id='gcpconn',
+        src=cleaned_csv_data,
+        dst=dst_path,
+        bucket=gcs_name,
+        gcp_conn_id=gcp_conn_id,
         mime_type='text/csv',
     )
-
-    create_retail_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id='create_retail_dataset',
-        dataset_id='retail',
-        gcp_conn_id='gcpconn',
-
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id='create_dataset',
+        dataset_id=dataset_id,
+        gcp_conn_id=gcp_conn_id,
     )
-
-    gcs_to_raw = aql.load_file(
-        task_id='gcs_to_raw',
-        input_file=File(
-            'gs://online_retail_database/raw/online_retail.csv',
-            conn_id='gcpconn',
-            filetype=FileType.CSV,
-        ),
-        output_table=Table(
-            name='raw_online_retail',
-            conn_id='gcpconn',
-            metadata=Metadata(schema='retail')
-        ),
-        use_native_support=False,
+    gcs_to_raw = GCSToBigQueryOperator(
+        task_id="gcs_to_raw",
+        bucket=gcs_name,
+        source_objects=[dst_path],
+        destination_project_dataset_table=f"{project_id}.{dataset_id}.{saving_table_name}",
+        source_format="CSV",
+        create_disposition="CREATE_IF_NEEDED",
+        write_disposition="WRITE_TRUNCATE",
+        autodetect=True,
+        gcp_conn_id=gcp_conn_id,
     )
-
-    # @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
-    # def check_load(scan_name='check_load', checks_subpath='sources'):
-    #     from include.soda.check_function import check
-    #
-    #     return check(scan_name, check_subpath)
-    #
-    # transform = DbtTaskGroup(
-    #     group_id='transform',
-    #     project_config=DBT_PROJECT_CONFIG,
-    #     profile_config=DBT_CONFIG,
-    #     render_config=RenderConfig(
-    #         load_method=LoadMode.DBT_LS,
-    #         select=['path:models/transform']
-    #     ))
-    #
-    # @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
-    # def check_transform(scan_name='check_transform', checks_subpath='transform'):
-    #     from include.soda.check_function import check
-    #
-    #     return check(scan_name, checks_subpath)
-    #
-    # report = DbtTaskGroup(
-    #     group_id='report',
-    #     project_config=DBT_PROJECT_CONFIG,
-    #     profile_config=DBT_CONFIG,
-    #     render_config=RenderConfig(
-    #         load_method=LoadMode.DBT_LS,
-    #         select=['path:models/report']
-    #     ))
-    #
-    # @task.external_python(python='/usr/local/airflow/soda_venv/bin/python')
-    # def check_report(scan_name='check_report', checks_subpath='report'):
-    #     from include.soda.check_function import check
-    #
-    #     return check(scan_name, checks_subpath)
-    #
-    # chain(
-    #     [upload_csv_to_gcs, create_retail_dataset],
-    #     gcs_to_raw,
-    #     # check_load(),
-    #     # transform,
-    #     # check_transform(),
-    #     # report,
-    #     # check_report(),
-    # )
-    upload_csv_to_gcs
-    create_retail_dataset >> gcs_to_raw
-
-if __name__ == '__main__':
-    retail()
+    chain(clean_csv_task, upload_csv_to_gcs, create_dataset, gcs_to_raw)

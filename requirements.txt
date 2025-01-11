@@ -1,1 +1,5 @@
 apache-airflow-providers-google
+dbt-bigquery==1.5.3
+astro-run-dag
+PyYAML
+
